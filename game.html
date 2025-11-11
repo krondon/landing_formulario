@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorteo Smart TV</title>
+    
+    <!-- Carga de Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Carga de Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Configuración de la fuente Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Mismo fondo oscuro "AI" que el formulario */
+            background-color: #0a0e1a;
+            background-image: radial-gradient(at 80% 20%, hsla(212, 60%, 25%, 0.4) 0px, transparent 50%),
+                              radial-gradient(at 20% 80%, hsla(280, 50%, 30%, 0.3) 0px, transparent 50%);
+            overflow: hidden; /* Oculta el scroll, necesario para el confeti */
+            position: relative;
+        }
+
+        /* Contenedor para el confeti */
+        #confettiContainer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* No se puede hacer clic en el confeti */
+            overflow: hidden;
+            z-index: 999;
+        }
+
+        /* Estilo de cada pieza de confeti */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            opacity: 1;
+            transform-origin: center;
+            /* La animación 'fall' se define abajo */
+            animation: fall 5s linear forwards;
+        }
+
+        @keyframes fall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                /* Cae 100vh (toda la pantalla) y gira */
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* Clase de "ganador" que se añade con JS */
+        .winner-text {
+            /* Se agranda */
+            transform: scale(1.25);
+            /* Brilla en verde */
+            color: #4ade80; /* text-green-400 */
+            /* Efecto de sombra de texto para resaltar */
+            text-shadow: 0 0 15px rgba(74, 222, 128, 0.5), 0 0 30px rgba(74, 222, 128, 0.3);
+        }
+    </style>
+</head>
+<body class="text-white">
+
+    <!-- Contenedor principal centrado -->
+    <div class="flex flex-col items-center justify-center min-h-screen p-4">
+
+        <!-- Área de visualización del ganador -->
+        <div id="winnerDisplay" class="text-center min-h-[250px] md:min-h-[300px] flex flex-col justify-center transition-all duration-500 ease-in-out">
+            
+            <!-- Estado inicial de carga -->
+            <div id="loadingState">
+                <h2 class="text-3xl font-bold text-gray-400">Cargando participantes...</h2>
+                <p class="text-lg text-gray-500">Preparando el sorteo.</p>
+            </div>
+
+            <!-- Aquí se mostrarán los nombres aleatorios -->
+            
+        </div>
+
+        <!-- Botón de control -->
+        <div class="mt-8">
+            <button id="raffleButton" class="bg-blue-600 text-white font-bold py-4 px-10 rounded-lg shadow-lg text-xl transition-all duration-300 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                Iniciar Sorteo
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Contenedor para el confeti -->
+    <div id="confettiContainer"></div>
+
+
+    <script>
+        // --- SUPABASE Y LÓGICA DEL SORTEO ---
+
+        // 1. Configuración de Supabase
+        // ¡REEMPLAZA ESTO CON TUS PROPIAS CLAVES DE SUPABASE!
+        const SUPABASE_URL = 'https://pmdaswelvngkilnwpfnc.supabase.co'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtZGFzd2Vsdm5na2lsbndwZm5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzNTc0NjgsImV4cCI6MjA1ODkzMzQ2OH0.2hWjYa3jrZCmlxSO2h-73ta4BA8H5x7ZBxigojmSKFw';
+
+        const { createClient } = supabase;
+        const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // 2. Selección de elementos del DOM
+        const loadingState = document.getElementById('loadingState');
+        const winnerDisplay = document.getElementById('winnerDisplay');
+        const raffleButton = document.getElementById('raffleButton');
+        const confettiContainer = document.getElementById('confettiContainer');
+
+        // 3. Variables de estado
+        let participants = [];
+        let raffleInterval = null; // Para guardar el ID del intervalo
+        let isRaffling = false; // ¿Está el sorteo en marcha?
+
+        // 4. Función para cargar los participantes
+        async function fetchParticipants() {
+            raffleButton.disabled = true; // Desactivar botón mientras se carga
+            
+            const { data, error } = await _supabase
+                .from('participantes_sorteo')
+                .select('*');
+
+            if (error) {
+                console.error('Error cargando participantes:', error);
+                loadingState.innerHTML = `<h2 class="text-3xl font-bold text-red-500">Error al cargar datos</h2><p>${error.message}</p>`;
+                return;
+            }
+
+            if (data && data.length > 0) {
+                participants = data;
+                console.log(`Cargados ${participants.length} participantes.`);
+                loadingState.remove(); // Quitar mensaje de carga
+                winnerDisplay.innerHTML = `<h2 class="text-5xl font-bold text-gray-500">¿Quién ganará?</h2><p class="text-2xl text-gray-600">Haz clic para iniciar</p>`;
+                raffleButton.disabled = false; // Activar botón
+            } else {
+                loadingState.innerHTML = `<h2 class="text-3xl font-bold text-yellow-500">No hay participantes</h2><p>Aún nadie se ha registrado.</p>`;
+            }
+        }
+
+        // 5. Función para mostrar un participante aleatorio (el "giro")
+        function showRandomParticipant() {
+            const randomIndex = Math.floor(Math.random() * participants.length);
+            const randomParticipant = participants[randomIndex];
+            
+            winnerDisplay.innerHTML = `
+                <h2 class="text-4xl md:text-6xl font-extrabold text-gray-300 transition-all duration-100">${randomParticipant.nombre} ${randomParticipant.apellido}</h2>
+                <p class="text-2xl md:text-3xl text-gray-500">${randomParticipant.correo}</p>
+            `;
+            // Quitar estilos de ganador si los tuviera
+            winnerDisplay.classList.remove('winner-text');
+        }
+
+        // 6. Función para iniciar el sorteo
+        function startRaffle() {
+            isRaffling = true;
+            raffleButton.textContent = '¡Elegir Ganador!';
+            raffleButton.classList.remove('bg-blue-600');
+            raffleButton.classList.add('bg-green-600', 'hover:bg-green-700');
+            
+            // Mostrar nombres rápidamente (cada 100ms)
+            raffleInterval = setInterval(showRandomParticipant, 10);
+        }
+
+        // 7. Función para detener el sorteo y elegir ganador
+        function stopRaffle() {
+            isRaffling = false;
+            
+            // --- CAMBIO: Ocultamos el botón en lugar de cambiar el texto ---
+            raffleButton.classList.add('hidden');
+            
+            /* // Código anterior (eliminado):
+            raffleButton.textContent = 'Iniciar de Nuevo';
+            raffleButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+            raffleButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            raffleButton.disabled = true; // Desactivar brevemente
+            */
+            
+            // Detener el bucle
+            clearInterval(raffleInterval);
+            raffleInterval = null;
+
+            // El participante que está en pantalla ES el ganador
+            // Aplicar estilos de ganador
+            winnerDisplay.classList.add('winner-text');
+            launchConfetti();
+
+            // --- CAMBIO: Eliminamos el setTimeout que reactivaba el botón ---
+            /*
+            setTimeout(() => {
+                raffleButton.disabled = false;
+            }, 5000);
+            */
+        }
+
+        // 8. Función para lanzar confeti
+        function launchConfetti() {
+            confettiContainer.innerHTML = ''; // Limpiar confeti anterior
+            const colors = ['#f43f5e', '#ec4899', '#d946ef', '#a855f7', '#8b5cf6', '#6366f1', '#3b82f6', '#0ea5e9', '#06b6d4', '#14b8a6', '#10b981', '#22c55e', '#84cc16', '#eab308', '#f59e0b', '#f97316'];
+            
+            for (let i = 0; i < 100; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.backgroundColor = randomColor;
+                
+                // Posición inicial aleatoria en la parte superior
+                confetti.style.left = `${Math.random() * 100}vw`;
+                confetti.style.top = `${-10 - Math.random() * 20}px`; // Empieza fuera de la pantalla
+                
+                // Variación en la animación
+                confetti.style.animationDuration = `${3 + Math.random() * 2}s`; // Entre 3 y 5 segundos
+                confetti.style.animationDelay = `${Math.random() * 1}s`; // Retraso aleatorio
+                
+                confettiContainer.appendChild(confetti);
+            }
+
+            // Limpiar el DOM del confeti después de que termine la animación
+            setTimeout(() => {
+                confettiContainer.innerHTML = '';
+            }, 6000); // 1s (delay) + 5s (duration)
+        }
+
+        // 9. Event Listener principal para el botón
+        raffleButton.addEventListener('click', () => {
+            if (isRaffling) {
+                stopRaffle();
+            } else {
+                startRaffle();
+            }
+        });
+
+        // 10. Cargar los participantes al iniciar la página
+        window.addEventListener('DOMContentLoaded', fetchParticipants);
+
+    </script>
+</body>
+</html>
