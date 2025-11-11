@@ -79,12 +79,12 @@
     <div class="flex flex-col items-center justify-center min-h-screen p-4">
 
         <!-- Área de visualización del ganador -->
-        <div id="winnerDisplay" class="text-center min-h-[250px] md:min-h-[300px] flex flex-col justify-center transition-all duration-500 ease-in-out">
+        <div id="winnerDisplay" class="text-center min-h-[250px] md:min-h-[300px] flex flex-col justify-center transition-all duration-500 ease-in-out w-full px-4">
             
             <!-- Estado inicial de carga -->
             <div id="loadingState">
-                <h2 class="text-3xl font-bold text-gray-400">Cargando participantes...</h2>
-                <p class="text-lg text-gray-500">Preparando el sorteo.</p>
+                <h2 class="text-2xl sm:text-3xl font-bold text-gray-400">Cargando participantes...</h2>
+                <p class="text-base sm:text-lg text-gray-500">Preparando el sorteo.</p>
             </div>
 
             <!-- Aquí se mostrarán los nombres aleatorios -->
@@ -93,7 +93,7 @@
 
         <!-- Botón de control -->
         <div class="mt-8">
-            <button id="raffleButton" class="bg-blue-600 text-white font-bold py-4 px-10 rounded-lg shadow-lg text-xl transition-all duration-300 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed">
+            <button id="raffleButton" class="bg-blue-600 text-white font-bold py-3 px-6 sm:py-4 sm:px-10 rounded-lg shadow-lg text-lg sm:text-xl transition-all duration-300 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed">
                 Iniciar Sorteo
             </button>
         </div>
@@ -136,7 +136,7 @@
 
             if (error) {
                 console.error('Error cargando participantes:', error);
-                loadingState.innerHTML = `<h2 class="text-3xl font-bold text-red-500">Error al cargar datos</h2><p>${error.message}</p>`;
+                loadingState.innerHTML = `<h2 class="text-2xl sm:text-3xl font-bold text-red-500">Error al cargar datos</h2><p class="text-base sm:text-lg break-all">${error.message}</p>`;
                 return;
             }
 
@@ -144,10 +144,10 @@
                 participants = data;
                 console.log(`Cargados ${participants.length} participantes.`);
                 loadingState.remove(); // Quitar mensaje de carga
-                winnerDisplay.innerHTML = `<h2 class="text-5xl font-bold text-gray-500">¿Quién ganará?</h2><p class="text-2xl text-gray-600">Haz clic para iniciar</p>`;
+                winnerDisplay.innerHTML = `<h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-500">¿Quién ganará?</h2><p class="text-xl sm:text-2xl text-gray-600">Haz clic para iniciar</p>`;
                 raffleButton.disabled = false; // Activar botón
             } else {
-                loadingState.innerHTML = `<h2 class="text-3xl font-bold text-yellow-500">No hay participantes</h2><p>Aún nadie se ha registrado.</p>`;
+                loadingState.innerHTML = `<h2 class="text-2xl sm:text-3xl font-bold text-yellow-500">No hay participantes</h2><p class="text-base sm:text-lg">Aún nadie se ha registrado.</p>`;
             }
         }
 
@@ -157,8 +157,8 @@
             const randomParticipant = participants[randomIndex];
             
             winnerDisplay.innerHTML = `
-                <h2 class="text-4xl md:text-6xl font-extrabold text-gray-300 transition-all duration-100">${randomParticipant.nombre} ${randomParticipant.apellido}</h2>
-                <p class="text-2xl md:text-3xl text-gray-500">${randomParticipant.correo}</p>
+                <h2 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-gray-300 transition-all duration-100 break-words">${randomParticipant.nombre} ${randomParticipant.apellido}</h2>
+                <p class="text-xl sm:text-2xl md:text-3xl text-gray-500 break-all">${randomParticipant.correo}</p>
             `;
             // Quitar estilos de ganador si los tuviera
             winnerDisplay.classList.remove('winner-text');
